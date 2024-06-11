@@ -1,3 +1,4 @@
+import cProfile
 from datetime import date
 import streamlit as st
 from pycel import ExcelCompiler
@@ -6,7 +7,8 @@ import logging
 import os
 import sys
 import time
-
+import threading
+from PIL import Image
 
 def pycel_logging_to_console(enable=True):
     if enable:
@@ -17,21 +19,39 @@ def pycel_logging_to_console(enable=True):
         console.setLevel(logging.INFO)
         logger.addHandler(console)
 
-def handle_cover(excel, wb):
+def handle_cover(excel, wb, unit):
     #print Addverb in big fat bold red
     st.markdown("<h1 style='text-align: center; color: red;'>Addverb Sales FRM Tool</h1>", unsafe_allow_html=True)
 
-def handle_dynamo_all(excel, wb):
-    
-    loader()
+def convert_to_meters(unit, value):
+    if unit == 'Feet (ft)':
+        return value * 0.3048
+    return value
+
+def convert_to_feet(unit, values):
+    if unit == 'Feet (ft)':
+        return [x* 3.28084 for x in values]
+    return values
+
+def handle_dynamo_all(excel, wb, unit):
+
     dynamo_types = ["Dynamo100", "Dynamo200", "Dynamo500", "Dynamo1000", "Dynamo1500"]
-    dynamo_images = {
-    "Dynamo100": "images/dynamo/Dynamo100.png",
-    "Dynamo200": "images/dynamo/Dynamo200.png",
-    "Dynamo500": "images/dynamo/Dynamo500.png",
-    "Dynamo1000": "images/dynamo/Dynamo1000.png",
-    "Dynamo1500": "images/dynamo/Dynamo2500.png",
-    }
+
+    dynamo_images = {}
+
+    def load_images():
+        dynamo_images.update({
+            "Dynamo100": Image.open("images/dynamo/Dynamo100.png"),
+            "Dynamo200": Image.open("images/dynamo/Dynamo200.png"),
+            "Dynamo500": Image.open("images/dynamo/Dynamo500.png"),
+            "Dynamo1000": Image.open("images/dynamo/Dynamo1000.png"),
+            "Dynamo1500": Image.open("images/dynamo/Dynamo2500.png"),
+            "DynamoDistancePatch":  Image.open("images/dynamo/DynamoDistancePatch.png"),
+            "DynamoCombinedCycle": Image.open("images/dynamo/DynamoCombinedCycle.png"),
+            "DynamoSingleCycle": Image.open("images/dynamo/DynamoSingleCycle.png"),
+        })
+    load_images()
+    
     dynamo_aisle_widths = {
     "Dynamo100": [1.8, 1.6, 1.5, 1.2],
     "Dynamo200": [2.0, 1.8, 1.7, 1.4],
@@ -51,11 +71,14 @@ def handle_dynamo_all(excel, wb):
     aisle_widths = dynamo_aisle_widths[b11_selected]
     carry_type = dynamo_carry_type[b11_selected]
 
+    if unit == 'Feet (ft)':
+        aisle_widths = convert_to_feet(unit, aisle_widths)
+        
     if b11_selected:
         st.image(dynamo_images[b11_selected], use_column_width=True)
 
     with st.form(key='dynamo_form'):
-        
+
         selected_aisle_width = st.select_slider('Select Aisle Width', options=aisle_widths, value=aisle_widths[0])
         load_carry_type = st.selectbox("Select Carry Type", carry_type)
         load_unit_type = st.selectbox('Slide to select', load_unit_types)
@@ -68,15 +91,10 @@ def handle_dynamo_all(excel, wb):
         
         st.markdown("### Cycle times")
         col1, col2 = st.columns(2)
-        col1.image('images/dynamo/DynamoCombinedCycle.png', use_column_width=True)
-        col2.image('images/dynamo/DynamoSingleCycle.png', use_column_width=True)
-        # near_combined_percent_length_travelled = col1.slider('Near Combined % Length Travelled', min_value=0, max_value=100, value=50)/100
+        col1.image(dynamo_images["DynamoCombinedCycle"], use_column_width=True)
+        col2.image(dynamo_images["DynamoSingleCycle"], use_column_width=True)
         near_combined_weightage = st.slider('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
-
-        # mid_combined_percent_length_travelled = col1.slider('Mid Combined % Length Travelled', min_value=0, max_value=100, value=80)/100
         mid_combined_weightage = st.slider('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
-
-        # far_combined_percent_length_travelled = col1.slider('Far Combined % Length Travelled', min_value=0, max_value=100, value=100)/100
         far_combined_weightage = st.slider('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
         
         
@@ -85,7 +103,7 @@ def handle_dynamo_all(excel, wb):
             st.warning('The total weightage cannot exceed 100. Please reset the weightage values.')
 
         st.markdown("### Distance Patch")
-        st.image('images/dynamo/DynamoDistancePatch.png', use_column_width=True)
+        st.image(dynamo_images["DynamoDistancePatch"], use_column_width=True)
         col1, col2 = st.columns(2)
         max_distance_a = col1.number_input('Max Distance A', min_value=0, max_value=100, value=4)
         max_turns_a = col2.number_input('No of turns A', min_value=0, max_value=100, value=2)
@@ -106,116 +124,93 @@ def handle_dynamo_all(excel, wb):
 
 
     if submit_button:
-        excel.evaluate('Dynamo all!B11')
-        excel.set_value('Dynamo all!B11', str(b11_selected))    
-        excel.evaluate('Dynamo all!B12')
-        excel.set_value('Dynamo all!B12', selected_aisle_width)
-        excel.evaluate('Dynamo all!B13')
-        excel.set_value('Dynamo all!B13', str(load_carry_type))
-        excel.evaluate('Dynamo all!B14')
-        excel.set_value('Dynamo all!B14', str(load_unit_type))
-        excel.evaluate('Dynamo all!B16')
-        excel.set_value('Dynamo all!B16', throughput_pallets_per_hr)
-        excel.evaluate('Dynamo all!B17')
-        excel.set_value('Dynamo all!B17', number_of_load_units_carried_per_combined_cycle)
-        excel.evaluate('Dynamo all!B18')
-        excel.set_value('Dynamo all!B18', number_of_load_units_carried_per_single_cycle)
-        excel.evaluate('Dynamo all!B19')
-        excel.set_value('Dynamo all!B19', traffic_factor)
-        excel.evaluate('Dynamo all!B20')
-        excel.set_value('Dynamo all!B20', charging_factor)
-        excel.evaluate('Dynamo all!B25')
-        # excel.set_value('Dynamo all!B25', near_combined_percent_length_travelled)
-        excel.evaluate('Dynamo all!C25')
-        excel.set_value('Dynamo all!C25', near_combined_weightage)    
-        excel.evaluate('Dynamo all!B26')
-        # excel.set_value('Dynamo all!B26', mid_combined_percent_length_travelled)
-        excel.evaluate('Dynamo all!C26')
-        excel.set_value('Dynamo all!C26', mid_combined_weightage) 
-        excel.evaluate('Dynamo all!B27')
-        # excel.set_value('Dynamo all!B27', far_combined_percent_length_travelled)
-        excel.evaluate('Dynamo all!C27')
-        excel.set_value('Dynamo all!C27', far_combined_weightage) 
-        excel.evaluate('Dynamo all!B32')
-        excel.set_value('Dynamo all!B32', max_distance_a)
-        excel.evaluate('Dynamo all!C32')
-        excel.set_value('Dynamo all!C32', max_turns_a)
-        excel.evaluate('Dynamo all!B33')
-        excel.set_value('Dynamo all!B33', max_distance_b)
-        excel.evaluate('Dynamo all!C33')
-        excel.set_value('Dynamo all!C33', max_turns_b)     
-        excel.evaluate('Dynamo all!B34')
-        excel.set_value('Dynamo all!B34', max_distance_c)
-        excel.evaluate('Dynamo all!C34')
-        excel.set_value('Dynamo all!C34', max_turns_c) 
-        excel.evaluate('Dynamo all!B35')
-        excel.set_value('Dynamo all!B35', max_distance_d)
-        excel.evaluate('Dynamo all!C35')
-        excel.set_value('Dynamo all!C35', max_turns_d)
-        excel.evaluate('Dynamo all!B36')
-        excel.set_value('Dynamo all!B36', max_distance_single_cycle)
-        excel.evaluate('Dynamo all!C36')
-        excel.set_value('Dynamo all!C36', max_turns_single_cycle)       
+        cell_values = {
+            'Dynamo all!B11': str(b11_selected),
+            'Dynamo all!B12': convert_to_meters(unit,selected_aisle_width),
+            'Dynamo all!B13': str(load_carry_type),
+            'Dynamo all!B14': str(load_unit_type),
+            'Dynamo all!B16': throughput_pallets_per_hr,
+            'Dynamo all!B17': number_of_load_units_carried_per_combined_cycle,
+            'Dynamo all!B18': number_of_load_units_carried_per_single_cycle,
+            'Dynamo all!B19': traffic_factor,
+            'Dynamo all!B20': charging_factor,
+            'Dynamo all!C25': near_combined_weightage,
+            'Dynamo all!C26': mid_combined_weightage,
+            'Dynamo all!C27': far_combined_weightage,
+            'Dynamo all!B32': convert_to_meters(unit, max_distance_a),
+            'Dynamo all!C32': max_turns_a,
+            'Dynamo all!B33': convert_to_meters(unit, max_distance_b),
+            'Dynamo all!C33': max_turns_b,
+            'Dynamo all!B34': convert_to_meters(unit, max_distance_c),
+            'Dynamo all!C34': max_turns_c,
+            'Dynamo all!B35': convert_to_meters(unit, max_distance_d),
+            'Dynamo all!C35': max_turns_d,
+            'Dynamo all!B36': convert_to_meters(unit, max_distance_single_cycle),
+            'Dynamo all!C36': max_turns_single_cycle,
+        }
 
-        with st.spinner(text='Fetching Details...'):
-            time.sleep(0.2)
-            # @st.experimental_dialog(f"Results 🚀")
-            def results(excel, wb):
-                    st.text("Received your preferences, hang on a sec...!")
-                    col1, col2, col3 = st.columns(3)
-                    col1.metric(":red[Cycles/Hr]", round(excel.evaluate('Dynamo all!B7')))
-                    time.sleep(0.2)
-                    col2.metric(":red[Pallets/Hr]", round(excel.evaluate('Dynamo all!B8')))
-                    time.sleep(0.2)
-                    col3.metric(":red[Dynamos Required]", excel.evaluate('Dynamo all!B9'))
-                    
-                    sheet=wb['Dynamo all']
-                    sheet['B11'] = b11_selected
-                    sheet['B12'] = selected_aisle_width
-                    sheet['B13'] = load_carry_type
-                    sheet['B14'] = load_unit_type
-                    sheet['B16'] = throughput_pallets_per_hr
-                    sheet['B17'] = number_of_load_units_carried_per_combined_cycle
-                    sheet['B18'] = number_of_load_units_carried_per_single_cycle
-                    sheet['B19'] = traffic_factor
-                    sheet['B20'] = charging_factor
-                    # sheet['B25'] = near_combined_percent_length_travelled
-                    sheet['C25'] = near_combined_weightage
-                    # sheet['B26'] = mid_combined_percent_length_travelled
-                    sheet['C26'] = mid_combined_weightage
-                    # sheet['B27'] = far_combined_percent_length_travelled
-                    sheet['C27'] = far_combined_weightage
-                    sheet['B32'] = max_distance_a
-                    sheet['C32'] = max_turns_a
-                    sheet['B33'] = max_distance_b
-                    sheet['C33'] = max_turns_b
-                    sheet['B34'] = max_distance_c
-                    sheet['C34'] = max_turns_c
-                    sheet['B35'] = max_distance_d
-                    sheet['C35'] = max_turns_d
-                    sheet['B36'] = max_distance_single_cycle
-                    sheet['C36'] = max_turns_single_cycle
-                    wb.save(f'files/{date.today()}_{b11_selected}.xlsx')
-                    
-                    try: 
-                        with open('temp.xlsx', 'rb') as file:
-                            file_data = file.read()
+        for cell, value in cell_values.items():
+            excel.evaluate(cell)
+            excel.set_value(cell, value)      
 
-                        st.download_button(
-                            label="Download final sheet",
-                            data=file_data,
-                            file_name='data.xlsx',
-                            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                            use_container_width=True
-                        )
-                    except Exception as e:
-                        st.success("Record Stored Successfully!")
+
+        def results(excel, wb):
+            st.text("Received your preferences, hang on a sec...!")
+            col1, col2, col3 = st.columns(3)
+            col1.metric(":red[Cycles/Hr]", round(excel.evaluate('Dynamo all!B7')))
+            time.sleep(0.1)
+            col2.metric(":red[Pallets/Hr]", round(excel.evaluate('Dynamo all!B8')))
+            time.sleep(0.1)
+            col3.metric(":red[Dynamos Required]", excel.evaluate('Dynamo all!B9'))
+            
+            sheet=wb['Dynamo all']
+            data = {
+                'B11': b11_selected,
+                'B12': selected_aisle_width,
+                'B13': load_carry_type,
+                'B14': load_unit_type,
+                'B16': throughput_pallets_per_hr,
+                'B17': number_of_load_units_carried_per_combined_cycle,
+                'B18': number_of_load_units_carried_per_single_cycle,
+                'B19': traffic_factor,
+                'B20': charging_factor,
+                'C25': near_combined_weightage,
+                'C26': mid_combined_weightage,
+                'C27': far_combined_weightage,
+                'B32': max_distance_a,
+                'C32': max_turns_a,
+                'B33': max_distance_b,
+                'C33': max_turns_b,
+                'B34': max_distance_c,
+                'C34': max_turns_c,
+                'B35': max_distance_d,
+                'C35': max_turns_d,
+                'B36': max_distance_single_cycle,
+                'C36': max_turns_single_cycle
+            }
+            for key, value in data.items():
+                sheet[key] = value
+            wb.save(f'files/{date.today()}_{b11_selected}.xlsx')
+            
+            try: 
+                with open('temp.xlsx', 'rb') as file:
+                    file_data = file.read()
+
+                st.download_button(
+                    label="Download final sheet",
+                    data=file_data,
+                    file_name='data.xlsx',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.success("Record Stored Successfully!")
                         
                 
         results(excel, wb)
 
 
-def handle_sheet2(excel, wb):
+def handle_sheet2(excel, wb, unit):
     # Similar code for Sheet2
     pass
 
@@ -223,33 +218,31 @@ def loader():
     with st.spinner(text='Hold on tight! :rocket:'):
        time.sleep(0.5)
 
-def main():
-    # pycel_logging_to_console()
-
-    wb = load_workbook('master.xlsx')
-    sheet_names = wb.sheetnames
+def main(wb, sheet_names, files, excel):
 
     selected_sheet = st.sidebar.selectbox('Select a sheet', sheet_names)
-    files = os.listdir('./files')
-    selected_file = st.sidebar.selectbox('History', files, key='file_select')
-    if selected_file:
-        with open(os.path.join('./files', selected_file), 'rb') as file:
-            file_data = file.read()
-        st.sidebar.download_button(
-            label="Download selected file",
-            data=file_data,
-            file_name=selected_file
-        )
-
-    excel = ExcelCompiler(filename='master.xlsx')
-    loader()
+    # selected_file = st.sidebar.selectbox('History', files, key='file_select')
+    # if selected_file:
+    #     with open(os.path.join('./files', selected_file), 'rb') as file:
+    #         file_data = file.read()
+    #     st.sidebar.download_button(
+    #         label="Download selected file",
+    #         data=file_data,
+    #         file_name=selected_file
+    #     )
+    unit = st.sidebar.radio("Select Unit", ('Feet (ft)', 'Meters (mtrs)'))
+    print(unit)
     if selected_sheet == 'Dynamo all':
-        handle_dynamo_all(excel, wb)
+        handle_dynamo_all(excel, wb, unit)
     elif selected_sheet == 'COVER':
-        handle_cover(excel, wb)
+        handle_cover(excel, wb, unit)
     elif selected_sheet == 'Sheet2':
-        handle_sheet2(excel, wb)
+        handle_sheet2(excel, wb, unit)
 
 if __name__ == '__main__':
     st.set_page_config(page_title="Sales FRM", page_icon="images/AddverbLogo.png")
-    main()
+    excel = ExcelCompiler(filename='master.xlsx')
+    wb = load_workbook('master.xlsx')
+    sheet_names = wb.sheetnames
+    files = os.listdir('./files')
+    main(wb, sheet_names, files, excel)
