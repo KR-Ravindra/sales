@@ -9,11 +9,11 @@ containers: #container level customisation
     imageName: imageNameToBeUpdated
   resources: #resource limits
     limits:
-      cpu: 3000m
-      memory: 5Gi
+      cpu: 4000m
+      memory: 8Gi
     requests:
-      cpu: 1000m
-      memory: 1280Mi
+      cpu: 2000m
+      memory: 2Gi
   livenessProbe:
     initialDelaySeconds: 130 #lets you set a good delay when you know your application qualifies bunty standards!
 
