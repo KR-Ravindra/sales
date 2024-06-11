@@ -1,0 +1,40 @@
+
+enabled: true #the master control to decide whether a helm chart needs to come out of this or not.
+appName: sales-frm #this will be the name of every other manifest in this file
+namespace: devops #need to automate namespace creation
+
+containers: #container level customisation
+  containerPort: 8105 #container/pod/service port
+  image:
+    imageName: imageNameToBeUpdated
+  resources: #resource limits
+    limits:
+      cpu: 1000m
+      memory: 5Gi
+    requests:
+      cpu: 10m
+      memory: 128Mi
+  livenessProbe:
+    initialDelaySeconds: 130 #lets you set a good delay when you know your application qualifies bunty standards!
+
+pod: #pod level customisation
+  replicaCount: 1 #number of replicas for container
+  imagePullSecrets: [name: regcred] #docker secret - need to automate this along with namespace creation
+  
+
+#Used for service manifest
+service:
+  type: ClusterIP  #default to clusterIP, use ingress if required
+  ports: #supports multiple service ports
+    http: 8105 #mostly matches with the container port
+  
+#Used for ingress manifest
+ingress:
+  enabled: true  #Generates an ingress manifest if true, on false ignores rest of the lines
+  annotations:
+  hosts:
+    - host: 
+      paths:
+        - path: / #Need to work on rewrite url 
+          pathType: Prefix #Change only if you know what you are doing
+          port: 8105
