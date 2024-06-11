@@ -70,14 +70,14 @@ def handle_dynamo_all(excel, wb):
         col1, col2 = st.columns(2)
         col1.image('images/dynamo/DynamoCombinedCycle.png', use_column_width=True)
         col2.image('images/dynamo/DynamoSingleCycle.png', use_column_width=True)
-        near_combined_percent_length_travelled = col1.slider('Near Combined % Length Travelled', min_value=0, max_value=100, value=50)/100
-        near_combined_weightage = col2.slider('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
+        # near_combined_percent_length_travelled = col1.slider('Near Combined % Length Travelled', min_value=0, max_value=100, value=50)/100
+        near_combined_weightage = st.slider('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
 
-        mid_combined_percent_length_travelled = col1.slider('Mid Combined % Length Travelled', min_value=0, max_value=100, value=80)/100
-        mid_combined_weightage = col2.slider('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
+        # mid_combined_percent_length_travelled = col1.slider('Mid Combined % Length Travelled', min_value=0, max_value=100, value=80)/100
+        mid_combined_weightage = st.slider('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
 
-        far_combined_percent_length_travelled = col1.slider('Far Combined % Length Travelled', min_value=0, max_value=100, value=100)/100
-        far_combined_weightage = col2.slider('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
+        # far_combined_percent_length_travelled = col1.slider('Far Combined % Length Travelled', min_value=0, max_value=100, value=100)/100
+        far_combined_weightage = st.slider('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
         
         
         total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
@@ -125,15 +125,15 @@ def handle_dynamo_all(excel, wb):
         excel.evaluate('Dynamo all!B20')
         excel.set_value('Dynamo all!B20', charging_factor)
         excel.evaluate('Dynamo all!B25')
-        excel.set_value('Dynamo all!B25', near_combined_percent_length_travelled)
+        # excel.set_value('Dynamo all!B25', near_combined_percent_length_travelled)
         excel.evaluate('Dynamo all!C25')
         excel.set_value('Dynamo all!C25', near_combined_weightage)    
         excel.evaluate('Dynamo all!B26')
-        excel.set_value('Dynamo all!B26', mid_combined_percent_length_travelled)
+        # excel.set_value('Dynamo all!B26', mid_combined_percent_length_travelled)
         excel.evaluate('Dynamo all!C26')
         excel.set_value('Dynamo all!C26', mid_combined_weightage) 
         excel.evaluate('Dynamo all!B27')
-        excel.set_value('Dynamo all!B27', far_combined_percent_length_travelled)
+        # excel.set_value('Dynamo all!B27', far_combined_percent_length_travelled)
         excel.evaluate('Dynamo all!C27')
         excel.set_value('Dynamo all!C27', far_combined_weightage) 
         excel.evaluate('Dynamo all!B32')
@@ -159,7 +159,7 @@ def handle_dynamo_all(excel, wb):
 
         with st.spinner(text='Fetching Details...'):
             time.sleep(0.2)
-            @st.experimental_dialog(f"Results 🚀")
+            # @st.experimental_dialog(f"Results 🚀")
             def results(excel, wb):
                     st.text("Received your preferences, hang on a sec...!")
                     col1, col2, col3 = st.columns(3)
@@ -179,11 +179,11 @@ def handle_dynamo_all(excel, wb):
                     sheet['B18'] = number_of_load_units_carried_per_single_cycle
                     sheet['B19'] = traffic_factor
                     sheet['B20'] = charging_factor
-                    sheet['B25'] = near_combined_percent_length_travelled
+                    # sheet['B25'] = near_combined_percent_length_travelled
                     sheet['C25'] = near_combined_weightage
-                    sheet['B26'] = mid_combined_percent_length_travelled
+                    # sheet['B26'] = mid_combined_percent_length_travelled
                     sheet['C26'] = mid_combined_weightage
-                    sheet['B27'] = far_combined_percent_length_travelled
+                    # sheet['B27'] = far_combined_percent_length_travelled
                     sheet['C27'] = far_combined_weightage
                     sheet['B32'] = max_distance_a
                     sheet['C32'] = max_turns_a
@@ -230,16 +230,16 @@ def main():
     sheet_names = wb.sheetnames
 
     selected_sheet = st.sidebar.selectbox('Select a sheet', sheet_names)
-    # files = os.listdir('./files')
-    # selected_file = st.sidebar.selectbox('History', files, key='file_select')
-    # if selected_file:
-    #     with open(os.path.join('./files', selected_file), 'rb') as file:
-    #         file_data = file.read()
-    #     st.sidebar.download_button(
-    #         label="Download selected file",
-    #         data=file_data,
-    #         file_name=selected_file
-    #     )
+    files = os.listdir('./files')
+    selected_file = st.sidebar.selectbox('History', files, key='file_select')
+    if selected_file:
+        with open(os.path.join('./files', selected_file), 'rb') as file:
+            file_data = file.read()
+        st.sidebar.download_button(
+            label="Download selected file",
+            data=file_data,
+            file_name=selected_file
+        )
 
     excel = ExcelCompiler(filename='master.xlsx')
     loader()
