@@ -10,6 +10,7 @@ import time
 import threading
 from PIL import Image
 
+
 def pycel_logging_to_console(enable=True):
     if enable:
         logger = logging.getLogger('pycel')
@@ -20,8 +21,7 @@ def pycel_logging_to_console(enable=True):
         logger.addHandler(console)
 
 def handle_cover(excel, wb, unit):
-    #print Addverb in big fat bold red
-    st.markdown("<h1 style='text-align: center; color: red;'>Addverb Sales FRM Tool</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: red;'>Product Throughput Calculator</h1>", unsafe_allow_html=True)
 
 def convert_to_meters(unit, value):
     if unit == 'Feet (ft)':
@@ -30,7 +30,7 @@ def convert_to_meters(unit, value):
 
 def convert_to_feet(unit, values):
     if unit == 'Feet (ft)':
-        return [x* 3.28084 for x in values]
+        return [round(x * 3.28084, 2) for x in values]
     return values
 
 def handle_dynamo_all(excel, wb, unit):
@@ -52,6 +52,14 @@ def handle_dynamo_all(excel, wb, unit):
         })
     load_images()
     
+    def check_weightage():
+        total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
+        if total_weightage > 1:
+            st.warning('The total weightage of cycle times cannot exceed 100. Maybe 33% each works better?')
+            st.session_state.submit_button_disabled = True
+        else:
+            st.session_state.submit_button_disabled = False
+            
     dynamo_aisle_widths = {
     "Dynamo100": [1.8, 1.6, 1.5, 1.2],
     "Dynamo200": [2.0, 1.8, 1.7, 1.4],
@@ -78,52 +86,53 @@ def handle_dynamo_all(excel, wb, unit):
         st.image(dynamo_images[b11_selected], use_column_width=True)
 
     with st.form(key='dynamo_form'):
-
-        selected_aisle_width = st.select_slider('Select Aisle Width', options=aisle_widths, value=aisle_widths[0])
-        load_carry_type = st.selectbox("Select Carry Type", carry_type)
-        load_unit_type = st.selectbox('Slide to select', load_unit_types)
+        col1, col2 = st.columns(2)
+        selected_aisle_width = col1.select_slider('Select Aisle Width', options=aisle_widths, value=aisle_widths[0])
+        load_carry_type = col2.selectbox("Select Carry Type", carry_type)
+        load_unit_type = col2.selectbox('Slide to select', load_unit_types)
         
-        throughput_pallets_per_hr = st.number_input('Throughput (units/hour)', min_value=0, max_value=100000, value=54)
-        number_of_load_units_carried_per_combined_cycle = st.slider('Number of Load Units Carried per Combined Cycle', min_value=1, max_value=6, value=2)
-        number_of_load_units_carried_per_single_cycle = st.slider('Number of Load Units Carried per Single Cycle', min_value=1, max_value=6, value=1)
-        traffic_factor = st.slider('Traffic Factor in %', min_value=0, max_value=100, value=10)/100
-        charging_factor = st.slider('Charging Factor in %', min_value=0, max_value=100, value=15)/100
+        throughput_pallets_per_hr = col2.number_input('Throughput (units/hour)', min_value=0, max_value=100000, value=54)
+        number_of_load_units_carried_per_combined_cycle = col1.slider('Number of Load Units Carried per Combined Cycle', min_value=1, max_value=6, value=2)
+        number_of_load_units_carried_per_single_cycle = col1.slider('Number of Load Units Carried per Single Cycle', min_value=1, max_value=6, value=1)
+        col1, col2 = st.columns(2)
+        traffic_factor = col1.slider('Traffic Factor in %', min_value=0, max_value=100, value=10)/100
+        charging_factor = col2.slider('Charging Factor in %', min_value=0, max_value=100, value=15)/100
         
         st.markdown("### Cycle times")
         col1, col2 = st.columns(2)
         col1.image(dynamo_images["DynamoCombinedCycle"], use_column_width=True)
         col2.image(dynamo_images["DynamoSingleCycle"], use_column_width=True)
-        near_combined_weightage = st.slider('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
-        mid_combined_weightage = st.slider('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
-        far_combined_weightage = st.slider('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
-        
-        
-        total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
-        if total_weightage > 100:
-            st.warning('The total weightage cannot exceed 100. Please reset the weightage values.')
+        col1,col2,col3 = st.columns(3)
+        near_combined_weightage = col1.slider('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
+        mid_combined_weightage = col2.slider('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
+        far_combined_weightage = col3.slider('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
 
         st.markdown("### Distance Patch")
         st.image(dynamo_images["DynamoDistancePatch"], use_column_width=True)
-        col1, col2 = st.columns(2)
+        col1, col2, col3, col4 = st.columns(4)
         max_distance_a = col1.number_input('Max Distance A', min_value=0, max_value=100, value=4)
         max_turns_a = col2.number_input('No of turns A', min_value=0, max_value=100, value=2)
 
-        max_distance_b = col1.number_input('Max Distance B', min_value=0, max_value=100, value=10)
-        max_turns_b = col2.number_input('No of turns B', min_value=0, max_value=100, value=2)
+        max_distance_b = col3.number_input('Max Distance B', min_value=0, max_value=100, value=10)
+        max_turns_b = col4.number_input('No of turns B', min_value=0, max_value=100, value=2)
 
         max_distance_c = col1.number_input('Max Distance C', min_value=0, max_value=100, value=10)
         max_turns_c = col2.number_input('No of turns C', min_value=0, max_value=100, value=2)
 
-        max_distance_d = col1.number_input('Max Distance D', min_value=0, max_value=100, value=10)
-        max_turns_d = col2.number_input('No of turns D', min_value=0, max_value=100, value=2)
-
+        max_distance_d = col3.number_input('Max Distance D', min_value=0, max_value=100, value=10)
+        max_turns_d = col4.number_input('No of turns D', min_value=0, max_value=100, value=2)
+        col1, col2 = st.columns(2)
         max_distance_single_cycle = col1.number_input('Max Distance in Single Cycle', min_value=0, max_value=100, value=10)
         max_turns_single_cycle = col2.number_input('No of turns in Single Cycle', min_value=0, max_value=100, value=2)
-        
-        submit_button = st.form_submit_button(label='Fetch Details',use_container_width=True)
 
 
+        submit_button = st.form_submit_button(label='Fetch Details', use_container_width=True)
+    
     if submit_button:
+        total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
+        if total_weightage > 1:
+            st.warning('The total weightage of cycle times cannot exceed 100. Calculating based on default 33% for each.')
+            near_combined_weightage = mid_combined_weightage = far_combined_weightage = 0.33
         cell_values = {
             'Dynamo all!B11': str(b11_selected),
             'Dynamo all!B12': convert_to_meters(unit,selected_aisle_width),
@@ -219,19 +228,24 @@ def loader():
        time.sleep(0.5)
 
 def main(wb, sheet_names, files, excel):
+    
+    
+    st.sidebar.image("./images/AddverbLogo.png", use_column_width=True)
+    st.sidebar.title("Throughput Calculator")
 
-    selected_sheet = st.sidebar.selectbox('Select a sheet', sheet_names)
-    # selected_file = st.sidebar.selectbox('History', files, key='file_select')
-    # if selected_file:
-    #     with open(os.path.join('./files', selected_file), 'rb') as file:
-    #         file_data = file.read()
-    #     st.sidebar.download_button(
-    #         label="Download selected file",
-    #         data=file_data,
-    #         file_name=selected_file
-    #     )
-    unit = st.sidebar.radio("Select Unit", ('Feet (ft)', 'Meters (mtrs)'))
-    print(unit)
+    selected_sheet = st.sidebar.selectbox('Select Product', sheet_names)
+    unit = st.sidebar.radio("Select Unit", ('Meters (mtrs)', 'Feet (ft)'))
+    selected_file = st.sidebar.selectbox('History', files, key='file_select')
+
+    
+    if selected_file:
+        with open(os.path.join('./files', selected_file), 'rb') as file:
+            file_data = file.read()
+        st.sidebar.download_button(
+            label="Download selected file",
+            data=file_data,
+            file_name=selected_file
+        )
     if selected_sheet == 'Dynamo all':
         handle_dynamo_all(excel, wb, unit)
     elif selected_sheet == 'COVER':
@@ -240,7 +254,7 @@ def main(wb, sheet_names, files, excel):
         handle_sheet2(excel, wb, unit)
 
 if __name__ == '__main__':
-    st.set_page_config(page_title="Sales FRM", page_icon="images/AddverbLogo.png")
+    st.set_page_config(page_title="Throughput Calculator", page_icon="images/AddverbLogo.png")
     excel = ExcelCompiler(filename='master.xlsx')
     wb = load_workbook('master.xlsx')
     sheet_names = wb.sheetnames
