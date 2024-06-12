@@ -201,19 +201,17 @@ def handle_dynamo_all(excel, wb, unit):
                 sheet[key] = value
             wb.save(f'files/{date.today()}_{b11_selected}.xlsx')
             
-            try: 
-                with open('temp.xlsx', 'rb') as file:
-                    file_data = file.read()
+            with open(f'files/{date.today()}_{b11_selected}.xlsx', 'rb') as file:
+                file_data = file.read()
 
-                st.download_button(
-                    label="Download final sheet",
-                    data=file_data,
-                    file_name='data.xlsx',
-                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                    use_container_width=True
-                )
-            except Exception as e:
-                st.success("Record Stored Successfully!")
+            st.download_button(
+                label="Download final sheet",
+                data=file_data,
+                file_name='data.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                use_container_width=True
+            )
+
                         
                 
         results(excel, wb)
