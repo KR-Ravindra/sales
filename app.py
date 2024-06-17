@@ -33,6 +33,7 @@ def convert_to_feet(unit, values):
         return [round(x * 3.28084, 2) for x in values]
     return values
 
+@st.experimental_fragment
 def handle_dynamo_all(excel, wb, unit):
 
     dynamo_types = ["Dynamo100", "Dynamo200", "Dynamo500", "Dynamo1000", "Dynamo1500"]
@@ -52,14 +53,6 @@ def handle_dynamo_all(excel, wb, unit):
         })
     load_images()
     
-    def check_weightage():
-        total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
-        if total_weightage > 1:
-            st.warning('The total weightage of cycle times cannot exceed 100. Maybe 33% each works better?')
-            st.session_state.submit_button_disabled = True
-        else:
-            st.session_state.submit_button_disabled = False
-            
     dynamo_aisle_widths = {
     "Dynamo100": [1.8, 1.6, 1.5, 1.2],
     "Dynamo200": [2.0, 1.8, 1.7, 1.4],
@@ -84,7 +77,14 @@ def handle_dynamo_all(excel, wb, unit):
         
     if b11_selected:
         st.image(dynamo_images[b11_selected], use_column_width=True)
-
+    
+    def validate(total_weightage):
+        if total_weightage > 1:
+            st.toast("Total cycle time weightage exceeds 100%", icon='🤖')
+            return False
+        return True
+   
+ 
     with st.form(key='dynamo_form'):
         col1, col2 = st.columns(2)
         selected_aisle_width = col1.select_slider('Select Aisle Width', options=aisle_widths, value=aisle_widths[0])
@@ -98,15 +98,6 @@ def handle_dynamo_all(excel, wb, unit):
         traffic_factor = col1.slider('Traffic Factor in %', min_value=0, max_value=100, value=10)/100
         charging_factor = col2.slider('Charging Factor in %', min_value=0, max_value=100, value=15)/100
         
-        st.markdown("### Cycle times")
-        col1, col2 = st.columns(2)
-        col1.image(dynamo_images["DynamoCombinedCycle"], use_column_width=True)
-        col2.image(dynamo_images["DynamoSingleCycle"], use_column_width=True)
-        col1,col2,col3 = st.columns(3)
-        near_combined_weightage = col1.slider('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
-        mid_combined_weightage = col2.slider('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
-        far_combined_weightage = col3.slider('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
-
         st.markdown("### Distance Patch")
         st.image(dynamo_images["DynamoDistancePatch"], use_column_width=True)
         col1, col2, col3, col4 = st.columns(4)
@@ -125,14 +116,25 @@ def handle_dynamo_all(excel, wb, unit):
         max_distance_single_cycle = col1.number_input('Max Distance in Single Cycle', min_value=0, max_value=100, value=10)
         max_turns_single_cycle = col2.number_input('No of turns in Single Cycle', min_value=0, max_value=100, value=2)
 
+        st.markdown("### Cycle times")
+        col1, col2 = st.columns(2)
+        col1.image(dynamo_images["DynamoCombinedCycle"], use_column_width=True)
+        col2.image(dynamo_images["DynamoSingleCycle"], use_column_width=True)
+        col1,col2,col3 = st.columns(3)
+        near_combined_weightage = col1.number_input('Near Combined Weightage', min_value=0, max_value=100, value=33)/100
+        mid_combined_weightage = col2.number_input('Mid Combined Weightage', min_value=0, max_value=100, value=33)/100
+        far_combined_weightage = col3.number_input('Far Combined Weightage', min_value=0, max_value=100, value=33)/100
+
+        total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
+        if total_weightage > 1:
+            st.warning("Total cycle time weightage exceeds 100%")
 
         submit_button = st.form_submit_button(label='Fetch Details', use_container_width=True)
     
     if submit_button:
-        total_weightage = near_combined_weightage + mid_combined_weightage + far_combined_weightage
-        if total_weightage > 1:
-            st.warning('The total weightage of cycle times cannot exceed 100. Calculating based on default 33% for each.')
-            near_combined_weightage = mid_combined_weightage = far_combined_weightage = 0.33
+        if not validate(total_weightage):
+            st.text('Registered an error!')
+            st.stop()
         cell_values = {
             'Dynamo all!B11': str(b11_selected),
             'Dynamo all!B12': convert_to_meters(unit,selected_aisle_width),
@@ -199,15 +201,23 @@ def handle_dynamo_all(excel, wb, unit):
             }
             for key, value in data.items():
                 sheet[key] = value
-            wb.save(f'files/{date.today()}_{b11_selected}.xlsx')
             
-            with open(f'files/{date.today()}_{b11_selected}.xlsx', 'rb') as file:
+            from datetime import datetime
+
+            # Get the current date and time
+            now = datetime.now()
+
+            # Format the date and time as a string
+            date_time = now.strftime("%Y-%m-%d_%H-%M-%S")
+            wb.save(f'files/{date_time}_{b11_selected}.xlsx')
+            
+            with open(f'files/{date_time}_{b11_selected}.xlsx', 'rb') as file:
                 file_data = file.read()
 
             st.download_button(
                 label="Download final sheet",
                 data=file_data,
-                file_name='data.xlsx',
+                file_name=f'{date_time}_{b11_selected}.xlsx',
                 mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 use_container_width=True
             )
@@ -232,7 +242,7 @@ def main(wb, sheet_names, files, excel):
     st.sidebar.title("Throughput Calculator")
 
     selected_sheet = st.sidebar.selectbox('Select Product', sheet_names)
-    unit = st.sidebar.radio("Select Unit", ('Meters (mtrs)', 'Feet (ft)'))
+    unit = st.sidebar.radio("Select Unit", ('Feet (ft)', 'Meters (m)'))
     selected_file = st.sidebar.selectbox('History', files, key='file_select')
 
     
