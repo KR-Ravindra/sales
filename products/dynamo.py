@@ -174,18 +174,23 @@ def handle_dynamo_all(excel, wb, unit):
             for key, value in data.items():
                 sheet[key] = value
             
-            saved_file_name = save_to_file(wb, product_name)
-            
-            with open(f'files/{saved_file_name}', 'rb') as file:
-                file_data = file.read()
+            try:
+                saved_file_name = save_to_file(wb, product_name)
+                
+                with open(f'files/{saved_file_name}', 'rb') as file:
+                    file_data = file.read()
 
-            st.download_button(
-                label="Download final sheet",
-                data=file_data,
-                file_name=f'{saved_file_name}',
-                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                use_container_width=True
-            )
+                st.download_button(
+                    label="Download final sheet",
+                    data=file_data,
+                    file_name=f'{saved_file_name}',
+                    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    use_container_width=True
+                )
+            except Exception as e:
+                print(e)
+            finally:
+                st.success("Record saved successfully!")
  
         results(excel, wb)
 

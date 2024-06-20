@@ -61,7 +61,7 @@ def handle_zippy40(excel, wb, unit):
         cell_values = {
             f'{_SHEET_NAME}!B12': max_barcodes_in_l_sorting_area,
             f'{_SHEET_NAME}!B13': max_barcodes_in_w_sorting_area,
-            f'{_SHEET_NAME}!B14': convert_to_meters(distance_bw_induction_and_first_sort) if unit == "Feet (ft)" else distance_bw_induction_and_first_sort,
+            f'{_SHEET_NAME}!B14': convert_to_meters(unit, distance_bw_induction_and_first_sort) if unit == "Feet (ft)" else distance_bw_induction_and_first_sort,
             f'{_SHEET_NAME}!B15': throughput_sorts_per_hr,
             f'{_SHEET_NAME}!B16': traffic_factor,
             f'{_SHEET_NAME}!B17': charging_factor,
@@ -98,7 +98,7 @@ def handle_zippy40(excel, wb, unit):
             data = {
                 'B12': max_barcodes_in_l_sorting_area,
                 'B13': max_barcodes_in_w_sorting_area,
-                'B14': convert_to_meters(distance_bw_induction_and_first_sort) if unit == "Feet (ft)" else distance_bw_induction_and_first_sort,
+                'B14': convert_to_meters(unit, distance_bw_induction_and_first_sort) if unit == "Feet (ft)" else distance_bw_induction_and_first_sort,
                 'B16': throughput_sorts_per_hr,
                 'B17': traffic_factor,
                 'B18': charging_factor,

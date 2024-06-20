@@ -39,16 +39,6 @@ def loader():
        time.sleep(0.5)
 
 
-users = {
-    "admin": {
-        "password": "adminpassword",
-        "role": "admin"
-    },
-    "user": {
-        "password": "userpassword",
-        "role": "user"
-    }
-}
 def main(wb, sheet_names, files, excel):
     
     
